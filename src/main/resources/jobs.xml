@@ -6,7 +6,7 @@
         <url>jdbc:postgresql://127.0.0.1:5432/test</url>
         <username>postgres</username>
         <password>postgres123</password>
-        <dbtype>postgresql</dbtype>
+        <dbtype>PostgreSQL</dbtype>
         <driver>org.postgresql.Driver</driver>
     </source>
 
@@ -15,7 +15,7 @@
         <url>jdbc:sqlserver://localhost:1433;DatabaseName=test</url>
         <username>test</username>
         <password>test</password>
-        <dbtype>sqlserver</dbtype>
+        <dbtype>SQLServer</dbtype>
         <driver>com.microsoft.sqlserver.jdbc.SQLServerDriver</driver>
     </dest>
 

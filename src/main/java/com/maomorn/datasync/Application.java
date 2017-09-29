@@ -37,7 +37,7 @@ public class Application {
     /**
      * 读取配置文件，数据封装
      */
-    public void init() {
+    public Application() {
         srcDb = new DbInfo();
         destDb = new DbInfo();
         jobList = new ArrayList<JobInfo>();
@@ -117,7 +117,6 @@ public class Application {
 
     public static void main(String[] args) {
         Application app = new Application();
-        app.init();
         app.start();
     }
 }
