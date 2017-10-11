@@ -1,95 +1,88 @@
 package com.maomorn.datasync.dbhelper.impl;
 
-import com.maomorn.datasync.Tool;
 import com.maomorn.datasync.dbhelper.DbHelper;
 import com.maomorn.datasync.entity.JobInfo;
 import org.apache.log4j.Logger;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.*;
 
 /**
  * Author: MaoMorn
- * Date: 2017/9/25
- * Time: 8:33
- * Description: PostgreSQL数据库的细节操作，包括装配和执行两个部分
+ * Date: 2017/10/11
+ * Time: 13:54
+ * Description:
  */
 public class PostgreSQL implements DbHelper {
     private Logger logger = Logger.getLogger(PostgreSQL.class);
 
     /**
-     * 装配将要执行的SQL语句
-     *
-     * @param srcSql  源数据库SQL语句
-     * @param conn    数据库连接
-     * @param jobInfo 作业信息
-     * @return 执行的SQL语句
+     * 装配SQL命令
+     * @param srcSql 源数据库SQL查询命令
+     * @param conn 数据库连接
+     * @param jobInfo 作业数据实例
+     * @return 装配得到的SQL命令
      * @throws SQLException
      */
     public String assembleSQL(String srcSql, Connection conn, JobInfo jobInfo) throws SQLException {
-        String uniqueName = Tool.generateString(6) + "_" + jobInfo.getName();
-        //确定目标表的作用列
-        String[] fields = jobInfo.getDestTableFields().split(",");
-        //确定目标表的更新列
+        //获取目标表单作用列
+        String fieldStr = jobInfo.getDestTableFields();
+        String[] fields = fieldStr.split(",");
+        //获取更新列
         String[] updateFields = jobInfo.getDestTableUpdate().split(",");
-        //确定目标表
-        String destTable = jobInfo.getDestTable();
-        //确定目标表的判定键
+        //获取目标表单键
         String destTableKey = jobInfo.getDestTableKey();
-        //执行源数据库的表项查询，保存数据
-        PreparedStatement pst = conn.prepareStatement(srcSql);
-        ResultSet rs = pst.executeQuery();
+        //获取目标表单
+        String destTable = jobInfo.getDestTable();
+        Statement stat = conn.createStatement();
+        ResultSet rs = stat.executeQuery(srcSql);
         StringBuffer sql = new StringBuffer();
-        //装配SQL插入语句，预装所有的结果
-        sql.append("INSERT INTO").
-                append(destTable).append(" (").
-                append(jobInfo.getDestTableFields()).
-                append(") VALUES");
         long count = 0;
+        //SQL命令装配
         while (rs.next()) {
-            sql.append("(");
+            sql.append("IF NOT EXISTS (SELECT ").
+                    append(destTableKey).
+                    append(" FROM ").
+                    append(destTable).
+                    append(" WHERE ").
+                    append(destTableKey).
+                    append("='").
+                    append(rs.getString(destTableKey)).
+                    append("')").
+                    append("INSERT INTO ").
+                    append(destTable).
+                    append("(").
+                    append(fieldStr).
+                    append(") VALUES(");
             for (int i = 0; i < fields.length; i++) {
                 sql.append("'").
                         append(rs.getString(fields[i])).
                         append(i == (fields.length - 1) ? "'" : "',");
             }
-            sql.append("),");
+            sql.append(") ELSE UPDATE ").
+                    append(destTable).
+                    append(" SET ");
+            for (int i = 0; i < updateFields.length; i++) {
+                sql.append(updateFields[i]).
+                        append("='").
+                        append(rs.getString(updateFields[i])).
+                        append(i == (updateFields.length - 1) ? "'" : "',");
+            }
+            sql.append(" where ").
+                    append(destTableKey).
+                    append("='").
+                    append(rs.getString(destTableKey)).
+                    append("';");
             count++;
+            // this.logger.info("第" + count + "耗时: " + (new Date().getTime() - oneStart) + "ms");
         }
-        if (null != rs) {
+        this.logger.info("总共查询到 " + count + " 条记录");
+        if (rs != null) {
             rs.close();
         }
-        if (null != pst) {
-            pst.close();
+        if (stat != null) {
+            stat.close();
         }
-        if (count > 0) {
-            sql = sql.deleteCharAt(sql.length() - 1);
-            if ((!jobInfo.getDestTableUpdate().equals("")) && (!jobInfo.getDestTableKey().equals(""))) {
-                sql.append(" ON DUPLICATE KEY UPDATE ");
-                for (int i = 0; i < updateFields.length; i++) {
-                    sql.append(updateFields[i]).
-                            append("= VALUES(").
-                            append(updateFields[i]).
-                            append(i == (updateFields.length - 1) ? ")" : ",");
-                }
-                return new StringBuffer("ALTER TABLE ").
-                        append(destTable).
-                        append(" ADD CONSTRAINT ").
-                        append(uniqueName).
-                        append(" UNIQUE (").
-                        append(destTableKey).
-                        append(");").
-                        append(sql.toString()).
-                        append(";ALTER TABLE ").
-                        append(destTable).
-                        append(" DROP INDEX ").
-                        append(uniqueName).toString();
-            }
-            return sql.toString();
-        }
-        return null;
+        return count > 0 ? sql.toString() : null;
     }
 
     /**
@@ -99,12 +92,8 @@ public class PostgreSQL implements DbHelper {
      * @throws SQLException
      */
     public void executeSQL(String sql, Connection conn) throws SQLException {
-        PreparedStatement pst = conn.prepareStatement("");
-        String[] sqlList = sql.split(";");
-        for (int i = 0; i < sqlList.length; i++) {
-            pst.addBatch(sqlList[i]);
-        }
-        pst.executeBatch();
+        PreparedStatement pst = conn.prepareStatement(sql);
+        pst.executeUpdate();
         conn.commit();
         pst.close();
     }

@@ -28,7 +28,7 @@ public class DataTask implements Job {
      * @param context 作业执行的环境
      * @throws JobExecutionException
      */
-    public void execute(JobExecutionContext context)
+    public synchronized void execute(JobExecutionContext context)
             throws JobExecutionException {
         this.logger.info("开始任务调度: " + new Date());
         Connection inConn = null;

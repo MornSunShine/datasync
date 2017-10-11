@@ -1,5 +1,6 @@
 package com.maomorn.datasync.dbhelper.impl;
 
+import com.maomorn.datasync.Tool;
 import com.maomorn.datasync.dbhelper.DbHelper;
 import com.maomorn.datasync.entity.JobInfo;
 import org.apache.log4j.Logger;
@@ -24,6 +25,7 @@ public class SQLServer implements DbHelper {
      * @throws SQLException
      */
     public String assembleSQL(String srcSql, Connection conn, JobInfo jobInfo) throws SQLException {
+        String uniqueName = Tool.generateString(6) + "_" + jobInfo.getName();
         //获取目标表单作用列
         String fieldStr = jobInfo.getDestTableFields();
         String[] fields = fieldStr.split(",");
@@ -82,7 +84,19 @@ public class SQLServer implements DbHelper {
         if (stat != null) {
             stat.close();
         }
-        return count > 0 ? sql.toString() : null;
+        return new StringBuffer("ALTER TABLE ").
+                append(destTable).
+                append(" ADD CONSTRAINT ").
+                append(uniqueName).
+                append(" UNIQUE (").
+                append(destTableKey).
+                append(");").
+                append(sql.toString()).
+                append(";ALTER TABLE ").
+                append(destTable).
+                append(" DROP INDEX ").
+                append(uniqueName).toString();
+//        return count > 0 ? sql.toString() : null;
     }
 
     /**
@@ -96,5 +110,14 @@ public class SQLServer implements DbHelper {
         pst.executeUpdate();
         conn.commit();
         pst.close();
+//        PreparedStatement pst = conn.prepareStatement("");
+//        String[] sqlList = sql.split(";");
+//        for (int i = 0; i < sqlList.length; i++) {
+//            System.out.println(sqlList[i]);
+//            pst.addBatch(sqlList[i]);
+//        }
+//        pst.executeBatch();
+//        conn.commit();
+//        pst.close();
     }
 }
